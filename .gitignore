@@ -8,3 +8,8 @@ ia_log_agent/
 # OS / editor junk
 .DS_Store
 *.log
+
+# Local virtual environments
+winrm_env/
+.venv/
+venv/
