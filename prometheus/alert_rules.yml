@@ -1,0 +1,114 @@
+groups:
+  - name: windows_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: avg_over_time(windows_cpu_time_total[5m]) > 80
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 High CPU Usage on Windows"
+          description: "CPU usage has exceeded 80% for more than 2 minutes."
+
+      - alert: LowMemory
+        expr: windows_memory_available_bytes / windows_memory_commit_limit < 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Low Available Memory on Windows"
+          description: "Less than 10% of system memory is available."
+
+      - alert: DiskSpaceLow
+        expr: windows_logical_disk_free_bytes{instance=~".*C:"} < 5e+9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Low Disk Space on Windows (C: Drive)"
+          description: "Free disk space on C: drive is below 5GB."
+
+      - alert: WindowsExporterDown
+        expr: up{job="windows"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 Windows Exporter is Down"
+          description: "Windows Exporter is unreachable."
+
+  - name: linux_alerts
+    rules:
+      - alert: HighLoad
+        expr: node_load1 > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ High System Load on Linux"
+          description: "Load average has been above 5 for more than 2 minutes."
+
+      - alert: LowDiskSpace
+        expr: node_filesystem_free_bytes{mountpoint="/"} < 5e+9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Low Disk Space on Linux"
+          description: "Free disk space on root partition is below 5GB."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 High Memory Usage on Linux"
+          description: "Memory usage has exceeded 90%."
+
+      - alert: LinuxExporterDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 Linux Node Exporter is Down"
+          description: "Node Exporter is unreachable."
+
+  - name: docker_alerts
+    rules:
+      - alert: HighContainerCPU
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 High CPU Usage on Docker Container"
+          description: "A container is using more than 80% CPU for 2 minutes."
+
+      - alert: HighContainerMemory
+        expr: container_memory_usage_bytes > 500000000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ High Memory Usage on Docker Container"
+          description: "A container is using more than 500MB of RAM."
+
+      - alert: ContainerRestarting
+        expr: increase(container_restart_count[5m]) > 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Docker Container Restarting Frequently"
+          description: "A container has restarted more than 3 times in 5 minutes."
+
+      - alert: cAdvisorDown
+        expr: up{job="cadvisor"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 cAdvisor is Down"
+          description: "cAdvisor is unreachable."

@@ -1,0 +1,26 @@
+ibrahim-virtual-machine:
+  nodename: 
+  hostname: 
+  osFamily: unix
+  username: 
+  ssh-authentication: 
+  ssh-key-storage-path: 
+  ssh-port: 
+  ssh-opts: "-o StrictHostKeyChecking=no"
+  node-executor: ssh-exec
+  file-copier: scp
+  description: ""
+
+windows-host:
+  nodename: 
+  hostname: 
+  osFamily: windows
+  username: ""
+  winrm-authtype: basic
+  winrm-password-storage-path: keys/win
+  winrm-transport: 
+  winrm-port: 
+  node-executor: WinRMPython
+  file-copier: WinRMcpPython
+  description: "Windows Host"
+

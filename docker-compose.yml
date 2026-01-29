@@ -1,0 +1,180 @@
+version: '3.8'
+
+services:
+
+  rundeck-postgres:
+    image: postgres
+    container_name: rundeck-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: rundeck
+      POSTGRES_PASSWORD: rundeck
+      POSTGRES_DB: rundeck
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data  # Persist database data
+    networks:
+      - monitoring
+
+  rundeck:
+    image: rundeck/rundeck:4.16.0
+    container_name: rundeck
+    restart: unless-stopped
+    ports:
+      - "4440:4440"
+    environment:
+      RUNDECK_GRAILS_URL: "http://:4440"
+      RUNDECK_DATABASE_DRIVER: "org.postgresql.Driver"
+      RUNDECK_DATABASE_URL: "jdbc:postgresql://rundeck-postgres:5432/rundeck"
+      RUNDECK_DATABASE_USERNAME: "rundeck"
+      RUNDECK_DATABASE_PASSWORD: "rundeck"
+      RUNDECK_DATABASE_DIALECT: "org.hibernate.dialect.PostgreSQLDialect"
+      RUNDECK_ADMIN_USERNAME:  
+      RUNDECK_ADMIN_PASSWORD: 
+      RUNDECK_ADMIN_ROLE: 
+    volumes:
+      - ./rundeck_data:/home/rundeck/server/data
+    networks:
+      - monitoring
+    depends_on:
+      - rundeck-postgres
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./prometheus:/etc/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: always
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring
+    command:
+      - "--web.listen-address=0.0.0.0:9100"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=
+      - GF_SECURITY_ADMIN_PASSWORD=
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: always
+    volumes:
+      - ./alertmanager:/etc/alertmanager
+    ports:
+      - "9093:9093"
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    networks:
+      - monitoring
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: always
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - monitoring
+
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    restart: always
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=
+      - DOCKER_INFLUXDB_INIT_PASSWORD=
+      - DOCKER_INFLUXDB_INIT_ORG=
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_RETENTION=0
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=
+    volumes:
+      - influxdb-storage:/var/lib/influxdb2
+    networks:
+      - monitoring
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    restart: always
+    user: root
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    networks:
+      - monitoring
+    depends_on:
+      - influxdb
+      
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki:/etc/loki
+      - ./loki/data:/tmp/loki 
+    networks:
+      - monitoring
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    ports:
+      - "9080:9080"
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/promtail.yml
+      - /var/log:/var/log:ro
+      - /etc/hostname:/etc/hostname
+      - /etc/machine-id:/etc/machine-id
+    command: -config.file=/etc/promtail/promtail.yml
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+
+  
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  grafana-storage:
+  influxdb-storage:
+  rundeck_data:
+  postgres-data:
